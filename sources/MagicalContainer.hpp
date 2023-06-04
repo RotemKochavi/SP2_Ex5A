@@ -31,9 +31,12 @@ namespace ariel{
                     for(auto i= elements.begin(); i!=elements.end(); ++i) {
                         if(*i == element){
                             elements.erase(i);
-                            break;
+                            return;
                         }
                     }
+                    
+                    throw runtime_error("Error: The value doesn't exist");
+
                 }
             
                 int size() const {
@@ -77,20 +80,24 @@ namespace ariel{
                 int curr_index = 0;
 
                 public:
-                
+                    AscendingIterator( MagicalContainer &container, int curr): container(container), curr_index(curr) {}
                     AscendingIterator(MagicalContainer &container): container(container), curr_index(0){}
 
                     //Destructor
                     ~AscendingIterator() = default;
 
                     // Copy constructor
-                    AscendingIterator(const AscendingIterator& other) :container(other.container){}
+                    AscendingIterator(const AscendingIterator& other) :container(other.container) , curr_index(other.curr_index){}
 
                     // Move constructor
                     AscendingIterator(AscendingIterator&& other) noexcept : container(other.container) {}
 
                     // Copy assignment operator
                     AscendingIterator& operator=(const AscendingIterator& other) {
+                       if(&container != &other.container){ // throw error if we try to assign different containers
+                            throw runtime_error("Error: Iterators cannot be assigned if they belong to different containers.");
+                        }
+
                        if (this != &other) {
                             container = other.container;
                             curr_index = other.curr_index;
@@ -114,6 +121,9 @@ namespace ariel{
                     }
 
                     AscendingIterator operator++() { //++i
+                        if(curr_index >= container.getElements().size() || *this == end()){ // throw error when try to increase while we at the end
+                            throw runtime_error("Error: Iterator out of bounds!!!");
+                        }
                         ++curr_index;
                         return *this;
                     }
@@ -137,13 +147,11 @@ namespace ariel{
                     }
 
                     AscendingIterator begin() const {
-                        return AscendingIterator(container);
+                        return AscendingIterator(container, 0);
                     }
                     
                     AscendingIterator end() const {
-                        AscendingIterator end(container);
-                        end.curr_index = container.size();
-                        return end;
+                        return AscendingIterator(container,container.size());
                     }
 
 
@@ -155,56 +163,43 @@ namespace ariel{
                  
                 MagicalContainer &container;
                 int curr_index;
-                bool from_start;
 
                 public:
-                    SideCrossIterator(MagicalContainer &cont, int curr, bool flag): container(cont), curr_index(curr), from_start(flag) {}
-                    SideCrossIterator(MagicalContainer &container): container(container), curr_index(0), from_start(true) {}
+                    SideCrossIterator(MagicalContainer &cont, int curr): container(cont), curr_index(curr){}
+                    SideCrossIterator(MagicalContainer &container): container(container), curr_index(0) {}
 
                     // Default destructor
                     ~SideCrossIterator() = default;
 
                     // Copy constructor
-                    SideCrossIterator(const SideCrossIterator& other): container(other.container) {}
-                    
-                    // Move constructor
-                    SideCrossIterator(SideCrossIterator&& other) noexcept : container(other.container) {}
+                    SideCrossIterator(const SideCrossIterator& other): container(other.container), curr_index(other.curr_index) {}
                     
                     // Copy assignment operator
                     SideCrossIterator& operator=(const SideCrossIterator& other) {
-                        if (this != &other) {
-                            container = other.container;
-                            curr_index = other.curr_index;
-                            from_start = other.from_start;
+                        if(&container != &other.container){ // throw error if we try to assign different containers
+                            throw runtime_error("Error: Iterators cannot be assigned if they belong to different containers.");
                         }
-                        return *this;
-                    }
-
-                    // Move assignment operator
-                    SideCrossIterator& operator=(SideCrossIterator&& other) noexcept {
                         if (this != &other) {
                             container = other.container;
                             curr_index = other.curr_index;
-                            from_start = other.from_start;
                         }
                         return *this;
                     }
 
                     int& operator*() const {
-                        return container.getElements()[static_cast<vector<int>::size_type>(curr_index)];
-                    }
+                        if (!(curr_index % 2)) { 
+                            return container.elements.at((std::vector<int>::size_type)(curr_index / 2));
+                        }
+                        else {
+                            return container.elements.at((std::vector<int>::size_type)(container.size() - 1 - (curr_index - 1 ) / 2));
+                        }   
+                    }                 
 
                     SideCrossIterator& operator++() { //++i
-                        if (from_start){
-                            if(curr_index != container.size()/2){
-                                ++curr_index;
-                            }
-                            else{
-                                curr_index = container.size();
-                            }
+                        if(curr_index >= container.getElements().size() || *this == end()){ // throw error when try to increase while we at the end
+                            throw runtime_error("Error: Iterator out of bounds!!!");
                         }
-
-                        from_start = !from_start;
+                        curr_index++;
                         return *this;
                     }
 
@@ -217,19 +212,19 @@ namespace ariel{
                         return curr_index < other.curr_index;
                     }
                     bool operator==(const SideCrossIterator& other) const{
-                        return curr_index == other.curr_index && from_start == other.from_start;
+                        return curr_index == other.curr_index && &container == &other.container;
                     }
 
                     bool operator!=(const SideCrossIterator& other) const{
-                        return !(curr_index == other.curr_index && from_start == other.from_start);
+                        return !(*this == other);                    
                     }
 
                     SideCrossIterator begin() const {
-                        return SideCrossIterator(container,0,true);
+                        return SideCrossIterator(container,0);
                     }
 
                     SideCrossIterator end() const {
-                        return SideCrossIterator(container,container.size(),false);;         
+                        return SideCrossIterator(container,container.size());;         
                     }
 
             };
@@ -256,17 +251,10 @@ namespace ariel{
 
                     PrimeIterator(MagicalContainer &cont, int curr) : container(cont), curr_index(curr) {}
                     PrimeIterator(MagicalContainer &container): container(container), curr_index(0) {
-                        vector<int> prime_v ={};
-
-                        for(size_t i = 0; i<container.size(); i++){
-                            if(isPrime(container.getElements()[i])){
-                                prime_v.push_back(container.getElements()[i]);
-                            }
+                        // Skip non-prime numbers at the beginning
+                        while (curr_index < container.size() && !isPrime(container.getElements().at((std::vector<int>::size_type)curr_index))) {
+                            curr_index++;
                         }
-
-                        sort(prime_v.begin(),prime_v.end());
-
-                        container.set_mystical_elements(prime_v);
                     }
 
                     // Default destructor
@@ -275,22 +263,14 @@ namespace ariel{
                     //Copy constructor
                     PrimeIterator(const PrimeIterator& other) : container(other.container), curr_index(other.curr_index) {}
 
-                    // Move constructor
-                    PrimeIterator(PrimeIterator&& other) noexcept: container(other.container) {}
-
                     // Copy assignment operator
                     PrimeIterator& operator=(const PrimeIterator& other) {
+                        if(&container != &other.container){ // throw error if we try to assign different containers
+                            throw runtime_error("Error: Iterators cannot be assigned if they belong to different containers.");
+                        }
                         if (this != &other){
-                            *this = other.container;
-                        }    
-                        
-                        return *this;
-                    }
-
-                    // Move assignment operator
-                    PrimeIterator& operator=(PrimeIterator&& other) noexcept {
-                        if (this != &other){
-                            *this = other.container;
+                            container = other.container;
+                            curr_index = other.curr_index;          
                         }
                         return *this;
                     }
@@ -300,7 +280,13 @@ namespace ariel{
                     }
 
                     PrimeIterator operator++(){ // ++i
-                        ++curr_index;
+                        if(curr_index >= container.getElements().size() || *this == end()){// throw error when try to increase while we at the end
+                            throw runtime_error("Error: Iterator out of bounds!!!");
+                        }
+                        curr_index++;
+                        if (curr_index < container.size() && !isPrime(container.getElements().at((std::vector<int>::size_type)curr_index))) {
+                            curr_index++;
+                        }
                         return *this;
                     }
 
@@ -314,11 +300,11 @@ namespace ariel{
                     }
 
                     bool operator==(const PrimeIterator& other) const{
-                        return curr_index == other.curr_index && &container == &other.container;
+                        return &container == &other.container && curr_index == other.curr_index ;
                     }
 
                     bool operator!=(const PrimeIterator& other) const{
-                        return !(*this == other);
+                        return !(*this == other);                    
                     }
 
                     PrimeIterator begin() const {
